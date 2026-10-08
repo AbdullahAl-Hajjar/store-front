@@ -1,42 +1,32 @@
-# Store-Front
+# Store Front
 
-The store-front is the Vue.js frontend that allows users to select products and place orders.
+Part of the Algonquin Pet Store (CST8915). A Vue.js 3 single-page app where customers pick a product, enter a quantity and place an order. It loads products from the product-service and sends orders to the order-service.
 
-## Requirements
+## Configuration (12-Factor: Config)
 
-- Node.js 24 LTS and npm (installed in the Order Service guide)
-- Product and Order services running
-- Start inside the repository's `store-front` directory. The main guide already takes you there.
+The two API base URLs come from environment variables that start with `VUE_APP_`:
 
-## Setup Instructions
+| Variable | Example |
+| --- | --- |
+| `VUE_APP_PRODUCT_SERVICE_URL` | `https://product-service-app-aa.azurewebsites.net` |
+| `VUE_APP_ORDER_SERVICE_URL` | `https://order-service-app-aa.azurewebsites.net` |
 
-1. Install the versions recorded in the committed lockfile:
+Use the base URL without a trailing slash, because the code appends `/products` and `/orders`.
 
-   ```bash
-   npm ci
-   ```
+Unlike the backend services, these values are **baked into the JavaScript bundle at build time**. The built app is just static files running in the user's browser, so it can't read server environment variables at runtime. Changing a URL means rebuilding. The values are visible to anyone who opens the site, so only public API URLs belong here.
 
-2. **Configure the API URLs before starting the Store Front.**
+## Run locally
 
-   For an Azure VM, open `src/components/OrderForm.vue` and replace the two URL strings in the `fetch(...)` calls:
+```bash
+cp .env.example .env    # then edit the URLs
+npm ci
+npm run serve
+```
 
-   | Original URL                     | Replacement                           |
-   | -------------------------------- | ------------------------------------- |
-   | `http://localhost:3030/products` | `http://<VM-PUBLIC-IP>:3030/products` |
-   | `http://localhost:3000/orders`   | `http://<VM-PUBLIC-IP>:3000/orders`   |
+## Deployment (Lab 3)
 
-   Substitute your VM's actual public IP for `<VM-PUBLIC-IP>`. For a local installation, keep both localhost URLs.
+`.github/workflows/azure-app-service-store-front.yml` runs on every push to `main`. It declares the two `VUE_APP_` variables in an `env:` block on `build_and_deploy_job`, runs `npm ci` and `npm run build` with them, and deploys `dist/` to the Linux Web App `store-front-app-aa`, which serves the files with `pm2 serve --spa`.
 
-   Your browser runs on your laptop. Its `localhost` points to that laptop; using the VM's public IP sends API requests to your VM. The development WebSocket automatically uses the address in your browser.
+The lab asks for Azure Static Web Apps, but my Azure for Students subscription only allows a few regions and Static Web Apps isn't offered in any of them (every attempt failed with `RequestDisallowedByAzure`). App Service plus GitHub Actions gives the same result: CI/CD from GitHub, with the service URLs baked in at build time.
 
-3. Start the Store Front:
-
-   ```bash
-   npm run serve
-   ```
-
-   Keep this terminal open; do not start a second copy from the main guide.
-
-4. Open `http://<VM-PUBLIC-IP>:8080` for Azure, or `http://localhost:8080` locally. On Azure, use the public IP you saved in the portal, even if the terminal's Network URL shows a private IP.
-
-Select one product, enter a positive quantity, and click **Place Order**. Two units of Dog Food should total **$39.98**. Verify the queued message using the RabbitMQ guide and check the browser console for errors.
+The workflow needs one repository secret, `AZURE_WEBAPP_PUBLISH_PROFILE`, which holds the Web App's publish profile.

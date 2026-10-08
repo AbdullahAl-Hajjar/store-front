@@ -1,0 +1,39 @@
+# Builds the Vue store-front and deploys the static files to Azure App Service.
+# (Azure Static Web Apps can't be created in any region my Azure for Students
+# subscription allows, so the built site is served by a Linux Web App instead.)
+name: Build and deploy store-front
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build_and_deploy_job:
+    runs-on: ubuntu-latest
+    name: Build and Deploy Job
+    env: # Baked into the JavaScript bundle at build time (no trailing slash: the code adds /orders and /products)
+      VUE_APP_ORDER_SERVICE_URL: https://order-service-app-aa.azurewebsites.net
+      VUE_APP_PRODUCT_SERVICE_URL: https://product-service-app-aa.azurewebsites.net
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "24"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to Azure Web App
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: store-front-app-aa
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: dist
